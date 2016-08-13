@@ -1,4 +1,4 @@
-# import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 import time
 import ConfigParser
 from magnetic_strip import MagnetStripEncoding
@@ -44,16 +44,15 @@ def blink(pin, delay, times):
         time.sleep(delay)
 
 
-def send_bit(sendBit, signal_direction=1):
-    print sendBit
-    return
+def send_bit(bit, signal_direction=1):
+    print bit
     signal_direction ^= 1
 
     GPIO.output(COIL_PIN_A, signal_direction)
     GPIO.output(COIL_PIN_B, not signal_direction)
     time.sleep(CLOCK_INTERVAL)
 
-    if (sendbit):
+    if (bit):
         signal_direction ^= 1
         GPIO.output(COIL_PIN_A, signal_direction)
         GPIO.output(COIL_PIN_B, not signal_direction)
@@ -62,7 +61,9 @@ def send_bit(sendBit, signal_direction=1):
 
 
 def transmit_signal(bitseq):
+    print "Sending:", bitseq
     try:
+        print "Attempting to send %i bits" % len(bitseq)
         IS_SENDING = True
         signal_direction = 0
         enable_coil()
@@ -76,8 +77,7 @@ def transmit_signal(bitseq):
         print e
     finally:
         IS_SENDING = False
-
-
+        print "Finished Sending"
 
 
 def transmit_card(card):
@@ -88,8 +88,8 @@ def transmit_card(card):
     :return:
     """
     buffer_signal = '0'*BETWEEN_ZERO
-    track1_signal = card.track1.magstrip_bit_seq
-    track2_signal = card.track2.magstrip_bit_seq
+    track1_signal = card.track1.output_bitsequence
+    track2_signal = card.track2.output_bitsequence
     card_bit_seq = "{}{}{}{}".format(
         buffer_signal,
         track1_signal,
@@ -116,7 +116,7 @@ def run_mag_spoof():
     while True:
         if not SENDING_LOCKED and GPIO.input(BUTTON_SIGNAL_PIN) == False:
             print ('Button Pressed')
-            transmit_card()
+            transmit_card(CARD)
         time.sleep(.2)
 
 

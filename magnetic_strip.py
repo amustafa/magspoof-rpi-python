@@ -201,12 +201,14 @@ class MagnetStripEncoding(object):
 
 
 
-
-# x = MagnetStripEncoding('%B0123456789101112^SCHMOE/JOSEPH X^01020304050607080910?;0123456789101112=01020304050607080910?')
-# print x.track1.str_data
-# print x.track1.data
-# print x.track1.hex_data
-# print x.track1.bit_data
-# print x.track1.lrc
+# Track 1 example:   %B0123456789101112^SCHMOE/JOSEPH X^01020304050607080910?8
+# Track 2 example:   ;0123456789101112=01020304050607080910?:
+x = MagnetStripEncoding('%B0123456789101112^SCHMOE/JOSEPH X^01020304050607080910?;0123456789101112=01020304050607080910?')
+print x.track1.str_data
+print x.track1.data
+print x.track1.hex_data
+print x.track1.bit_data
+print hex(x.track1.lrc)
+print hex(x.track2.lrc)
 # print x.track1.output_bitsequence
 # print int(x.track1.output_bitsequence,2)
