@@ -37,14 +37,14 @@ class Track(object):
     @property
     def data(self):
         """
-        Returns the data as a series of integer values.
+        Returns the data as a list of integer values.
 
         Track 1 encodes in ANSI/ISO ALPHA Data Format
                 Same as ascii except all values are 32 lower.
 
         Track 2 encodes in ANSI/ISO BCD  Data Format
                 hex value is ascii value minus 48
-        :return:
+        :return: list
         """
         if self._data is None:
             self._data = []
@@ -112,10 +112,6 @@ class Track(object):
         lrc_bit_parity = (lrc_bit_seq.count('1') +1) % 2
         bit_seq_str += "{}{}".format(lrc_bit_seq[::-1],lrc_bit_parity)
         return bit_seq_str
-
-
-
-
 
 
 class MagnetStripEncoding(object):

@@ -1,7 +1,7 @@
 import RPi.GPIO as GPIO
 import time
 import ConfigParser
-from magnetic_strip import MagnetStripEncoding
+from magnetic_stripe import MagnetStripEncoding
 conf = ConfigParser.ConfigParser()
 conf.readfp(open('conf.ini', 'r'))
 
@@ -23,39 +23,73 @@ CARD = MagnetStripEncoding(TRACKS)
 
 
 SENDING_LOCKED = False
+GPIO_STATE = {
+        'COIL_PIN_A': None,
+        'COIL_PIN_B': None,
+        'ENABLE_PIN': None
+        }
 
+def set_pin(pin_name, pin_state):
+    """
+    Keeps the pin and the pin state variable synced
+    """
+
+    GPIO_STATE[pin_name] = pin_state
+    GPIO.output(pin_name, pin_state)
 
 def enable_coil():
-    GPIO.output(ENABLE_PIN, True)
-
+    set_pin('ENABLE_PIN', True)
 
 def disable_coil():
-
-    GPIO.output(COIL_PIN_A, False)
-    GPIO.output(COIL_PIN_B, False)
-    GPIO.output(ENABLE_PIN, False)
+    set_pin(COIL_PIN_A, False)
+    set_pin(COIL_PIN_B, False)
+    set_pin(ENABLE_PIN, False)
 
 
 def blink(pin, delay, times):
+    """
+    Directs the onboard LED to blink
+    """
     for i in range(times):
-        GPIO.output(pin, True)
+        set_pin(pin, True)
         time.sleep(delay)
-        GPIO.output(pin, False)
+        set_pin(pin, False)
         time.sleep(delay)
 
+def reverse_current(gpio_state):
+    """
+    Takes the state of the gpio bins, switches the values in the
+    dictionary and then sets the outputs.
+    """
+    set_pin(COIL_PIN_A, not gpio_state['COIL_PIN_A'])
+    set_pin(COIL_PIN_B, not gpio_state['COIL_PIN_B'])
 
-def send_bit(bit, signal_direction=1):
+
+def send_bit(bit, gpio_state):
+    """
+    Info from: http://dewimorgan.livejournal.com/48917.html
+    A bit in a magnetic strip is designated by having time polarity shifts.
+
+    For example,
+
+    NnsSSsnN SssssnnnN NnnnnsssS NnsSSsnN NnsSSsnN
+        1        0         0         1       1
+
+    So in order to send a bit, we must know what the existing polarity is and
+    either switch it once during a clock step for a zero or switch it twice
+    for a one.
+
+    By sending current through the wire in one direction, the magnetic field is
+    oriented one way. By sending in the other direction the magnetic field is
+    oriented the opposite way. current_dir will designate the direction.
+    """
     print bit
-    signal_direction ^= 1
 
-    GPIO.output(COIL_PIN_A, signal_direction)
-    GPIO.output(COIL_PIN_B, not signal_direction)
+    reverse_current(gpio_state)
     time.sleep(CLOCK_INTERVAL)
 
     if (bit):
-        signal_direction ^= 1
-        GPIO.output(COIL_PIN_A, signal_direction)
-        GPIO.output(COIL_PIN_B, not signal_direction)
+        reverse_current(gpio_state)
 
     time.sleep(CLOCK_INTERVAL)
 
@@ -82,7 +116,7 @@ def transmit_signal(bitseq):
 
 def transmit_card(card):
     """
-
+    Converts the different tracks into
     :param card:
     :type card: MagnetStripEncoding
     :return:
@@ -97,8 +131,6 @@ def transmit_card(card):
         track2_signal
     )
     transmit_signal(card_bit_seq)
-
-
 
 
 def setup_mag_spoof():
@@ -124,7 +156,7 @@ if __name__ == "__main__":
     try:
         setup_mag_spoof()
         run_mag_spoof()
-    except  KeyboardInterrupt as e:
+    except KeyboardInterrupt as e:
         print e
     finally:
         print "Cleaning up"
