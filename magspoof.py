@@ -13,7 +13,9 @@ ENABLE_PIN = conf.getint('RPi', 'ENABLE_PIN')  # PB3 connecting to pin 1 on IC1
 COIL_PIN_A = conf.getint('RPi', 'COIL_PIN_A')  # PB0 connecting to pin 2 in IC1 and PIN_A in code
 COIL_PIN_B = conf.getint('RPi', 'COIL_PIN_B')  # PB1 connecting to pin 7 on IC1 and PIN_B in code
 CLOCK_INTERVAL = conf.getfloat('RPi', 'CLOCK_INTERVAL')
-BETWEEN_ZERO = conf.getint('RPi', 'BETWEEN_ZERO') # how long to wait between sending tracks
+TRACK_SEPARATOR = conf.getint('RPi', 'TRACK_SEPARATOR') # how long to wait between sending tracks
+LEADING_ZEROS  = conf.getint('RPi', 'LEADING_ZEROS')
+
 
 # Card Info
 TRACK_COUNT = conf.getint('Card Info', 'TRACK_COUNT')
@@ -22,7 +24,7 @@ TRACKS = [conf.get('Card Info', 'TRACK{}'.format(i+1)) for i in range(TRACK_COUN
 CARD = MagnetStripEncoding(TRACKS)
 
 
-SENDING_LOCKED = False
+IS_SENDING = False
 GPIO_STATE = {
         'COIL_PIN_A': None,
         'COIL_PIN_B': None,
@@ -38,7 +40,12 @@ def set_pin(pin_name, pin_state):
     GPIO.output(pin_name, pin_state)
 
 def enable_coil():
+    """
+    Activates the current in the coil and sets the initial current direction
+    """
     set_pin('ENABLE_PIN', True)
+    set_pin('COIL_PIN_A', True)
+    set_pin('COIL_PIN_B', False)
 
 def disable_coil():
     set_pin(COIL_PIN_A, False)
@@ -65,7 +72,7 @@ def reverse_current(gpio_state):
     set_pin(COIL_PIN_B, not gpio_state['COIL_PIN_B'])
 
 
-def send_bit(bit, gpio_state):
+def send_bit(bit):
     """
     Info from: http://dewimorgan.livejournal.com/48917.html
     A bit in a magnetic strip is designated by having time polarity shifts.
@@ -85,22 +92,26 @@ def send_bit(bit, gpio_state):
     """
     print bit
 
-    reverse_current(gpio_state)
+    reverse_current(GPIO_STATE)
     time.sleep(CLOCK_INTERVAL)
 
     if (bit):
-        reverse_current(gpio_state)
+        reverse_current(GPIO_STATE)
 
     time.sleep(CLOCK_INTERVAL)
 
 
 def transmit_signal(bitseq):
+    global IS_SENDING
     print "Sending:", bitseq
     try:
         print "Attempting to send %i bits" % len(bitseq)
         IS_SENDING = True
-        signal_direction = 0
         enable_coil()
+
+        # Sending leading zeros to set the clock
+        for i in range(LEADING_ZEROS):
+            send_bit(0)
 
         for bit in bitseq:
             send_bit(bit == '1')
@@ -121,11 +132,11 @@ def transmit_card(card):
     :type card: MagnetStripEncoding
     :return:
     """
-    buffer_signal = '0'*BETWEEN_ZERO
+    buffer_signal = '0'*TRACK_SEPARATOR
+
     track1_signal = card.track1.output_bitsequence
     track2_signal = card.track2.output_bitsequence
-    card_bit_seq = "{}{}{}{}".format(
-        buffer_signal,
+    card_bit_seq = "{}{}{}".format(
         track1_signal,
         buffer_signal,
         track2_signal
@@ -146,7 +157,7 @@ def setup_mag_spoof():
 def run_mag_spoof():
     print "Listening for Button Press"
     while True:
-        if not SENDING_LOCKED and GPIO.input(BUTTON_SIGNAL_PIN) == False:
+        if not IS_SENDING and GPIO.input(BUTTON_SIGNAL_PIN) == False:
             print ('Button Pressed')
             transmit_card(CARD)
         time.sleep(.2)
